@@ -12,19 +12,6 @@ export const metadata = {
 export default function ProductsPage() {
   return (
     <>
-      <Header />
-      <main className="min-h-screen bg-white pt-24 pb-32">
-        <div className="container mx-auto px-6 lg:px-12">
-          
-          <div className="mb-10 lg:mb-16">
-            <h1 className="text-3xl lg:text-4xl font-bold uppercase tracking-widest text-black mb-4">
-              Our Collection
-            </h1>
-            <p className="text-zinc-500 max-w-xl text-sm lg:text-base leading-relaxed">
-              Temukan wangi khas yang mewakili karakter unikmu. Dari aroma segar hingga maskulin yang mendalam, semuanya diracik dengan presisi.
-            </p>
-          </div>
-
           <Suspense 
             fallback={
               <div className="flex flex-col items-center justify-center py-32">
@@ -35,9 +22,6 @@ export default function ProductsPage() {
           >
             <ProductsClient />
           </Suspense>
-
-        </div>
-      </main>
       <Footer />
     </>
   );
