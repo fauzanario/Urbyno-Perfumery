@@ -39,7 +39,10 @@ export async function proxy(request: NextRequest) {
 
   // Proteksi rute /admin
   if (request.nextUrl.pathname.startsWith('/admin') && !user) {
-    if (request.nextUrl.pathname !== '/admin/login') {
+    if (
+      request.nextUrl.pathname !== '/admin/login' &&
+      request.nextUrl.pathname !== '/admin/passwordreset'
+    ) {
       return NextResponse.redirect(new URL('/admin/login', request.url))
     }
   }
