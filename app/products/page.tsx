@@ -1,7 +1,6 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import ProductsClient from "@/components/ProductsClient";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { Loader2 } from "lucide-react";
 
 export const metadata = {
@@ -11,18 +10,27 @@ export const metadata = {
 
 export default function ProductsPage() {
   return (
-    <>
-          <Suspense 
-            fallback={
-              <div className="flex flex-col items-center justify-center py-32">
-                <Loader2 className="w-8 h-8 text-black animate-spin mb-4" />
-                <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest">Loading Catalog...</p>
-              </div>
-            }
-          >
-            <ProductsClient />
-          </Suspense>
-      <Footer />
-    </>
+    <main className="min-h-screen bg-white text-black pt-4 md:pt-8 pb-20">
+      <div className="container mx-auto px-4 md:px-6 lg:px-12">
+        
+        <div className="hidden md:block text-[11px] text-zinc-400 mb-6 tracking-widest uppercase font-medium">
+          <Link href="/" className="hover:text-black transition-colors">Home</Link>
+          <span className="mx-2">/</span>
+          <span className="text-black font-bold">Products</span>
+        </div>
+
+        <Suspense 
+          fallback={
+            <div className="flex flex-col items-center justify-center py-32">
+              <Loader2 className="w-8 h-8 text-black animate-spin mb-4" />
+              <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest">Loading Catalog...</p>
+            </div>
+          }
+        >
+          <ProductsClient />
+        </Suspense>
+
+      </div>
+    </main>
   );
 }
