@@ -108,7 +108,7 @@ export default function AdminLogin() {
                 </button>
               </div>
               <div className="flex justify-end mt-2">
-                <Link href="/admin/forgot-password" className="text-[10px] font-bold text-amber-600 hover:text-amber-700 transition-colors">
+                <Link href="/admin/forgetpassword" className="text-[10px] font-bold text-amber-600 hover:text-amber-700 transition-colors">
                   Lupa password?
                 </Link>
               </div>
