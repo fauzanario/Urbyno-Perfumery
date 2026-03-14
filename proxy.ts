@@ -41,7 +41,8 @@ export async function proxy(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/admin') && !user) {
     if (
       request.nextUrl.pathname !== '/admin/login' &&
-      request.nextUrl.pathname !== '/admin/passwordreset'
+      request.nextUrl.pathname !== '/admin/passwordreset' &&
+      request.nextUrl.pathname !== '/admin/forgot-password' // 👈 Tambahin ini!
     ) {
       return NextResponse.redirect(new URL('/admin/login', request.url))
     }

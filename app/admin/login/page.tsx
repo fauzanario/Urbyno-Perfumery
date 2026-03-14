@@ -107,6 +107,11 @@ export default function AdminLogin() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              <div className="flex justify-end mt-2">
+                <Link href="/admin/forgot-password" className="text-[10px] font-bold text-amber-600 hover:text-amber-700 transition-colors">
+                  Lupa password?
+                </Link>
+              </div>
             </div>
 
             <button
