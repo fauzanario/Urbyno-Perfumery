@@ -73,7 +73,7 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 print:hidden">
       <div className="max-w-7xl mx-auto px-6 h-14 lg:h-10 flex items-center justify-between">
         
         {/* 1. MOBILE MENU TOGGLE */}
