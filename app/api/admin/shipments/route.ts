@@ -144,13 +144,17 @@ export async function POST(req: Request) {
     });
 
     if (order.customerEmail) {
-      sendShippingEmail(
-        order.customerEmail,
-        order.customerName,
-        order.orderCode,
-        order.courierCode,
-        trackingNumber.trim()
-      ).catch(console.error);
+      try {
+        await sendShippingEmail(
+          order.customerEmail,
+          order.customerName,
+          order.orderCode,
+          order.courierCode,
+          trackingNumber.trim()
+        );
+      } catch (emailError) {
+        console.error("Email gagal, tapi resi tetap tersimpan:", emailError);
+      }
     }
 
     return NextResponse.json({ success: true, message: "Nomor resi berhasil disimpan dan notifikasi email sedang dikirim!" });
