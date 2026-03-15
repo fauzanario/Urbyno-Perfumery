@@ -18,15 +18,15 @@ function getTrackingUrl(courier: string, trackingNumber: string) {
   
   // Ekspedisi yang harus copy-paste manual (Diarahkan ke web resmi)
   else if (c.includes("jne")) {
-    return `https://www.jne.co.id/id/tracking/trace`;
+    return `https://www.jne.co.id/tracking-package`;
   } else if (c.includes("pos")) {
     return `https://www.posindonesia.co.id/id/tracking`;
   } else if (c.includes("tiki")) {
-    return `https://tiki.id/id/tracking`;
+    return `https://tiki.id/id/track`;
   } else if (c.includes("sap")) {
-    return `https://www.sap-express.id/`;
+    return `https://www.sapx.id/id/cek-awb/`;
   } else if (c.includes("idexpress") || c.includes("ide")) {
-    return `https://idexpress.com/`;
+    return `https://idexpress.com/lacak-paket`;
   } 
   
   // Fallback jika kurir tidak dikenali: Arahkan ke pencarian Google
