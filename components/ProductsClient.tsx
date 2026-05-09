@@ -32,6 +32,9 @@ export default function ProductsClient() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   
+  // 👉 TAMBAHAN: State untuk mengatur tampilan grid/single di mobile
+  const [mobileView, setMobileView] = useState<"grid" | "single">("grid");
+  
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -99,27 +102,6 @@ export default function ProductsClient() {
 
       <div className="hidden md:flex justify-between items-center mb-10 border-b border-zinc-200 pb-4 relative" ref={dropdownRef}>
         <div className="flex items-center gap-8">
-          
-          <div className="relative">
-            <button 
-              onClick={() => setActiveDropdown(activeDropdown === "availability" ? null : "availability")}
-              className="flex items-center gap-2 text-sm text-zinc-600 hover:text-black transition-colors"
-            >
-              Availability <ChevronDown className={`w-4 h-4 transition-transform ${activeDropdown === "availability" ? "rotate-180" : ""}`} />
-            </button>
-            {activeDropdown === "availability" && (
-              <div className="absolute top-full left-0 mt-4 w-64 bg-white border border-zinc-200 shadow-xl p-5 z-20 flex flex-col gap-3">
-                <label className="flex items-center gap-3 cursor-pointer group">
-                  <input type="checkbox" checked={inStock} onChange={(e) => setInStock(e.target.checked)} className="w-4 h-4 accent-black cursor-pointer" />
-                  <span className="text-sm group-hover:text-black text-zinc-600">In stock</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer group">
-                  <input type="checkbox" checked={outOfStock} onChange={(e) => setOutOfStock(e.target.checked)} className="w-4 h-4 accent-black cursor-pointer" />
-                  <span className="text-sm group-hover:text-black text-zinc-600">Out of stock</span>
-                </label>
-              </div>
-            )}
-          </div>
 
           <div className="relative">
             <button 
@@ -173,9 +155,20 @@ export default function ProductsClient() {
           Filter
         </button>
         
-        <div className="flex items-center gap-3 text-zinc-400">
-          <button className="hover:text-black transition-colors"><Square className="w-5 h-5" /></button>
-          <button className="hover:text-black transition-colors"><LayoutGrid className="w-5 h-5 text-black" /></button>
+        {/* 👉 REVISI: Menambahkan onClick dan dinamisasi warna icon */}
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setMobileView("single")}
+            className={`transition-colors ${mobileView === "single" ? "text-black" : "text-zinc-400 hover:text-black"}`}
+          >
+            <Square className="w-5 h-5" />
+          </button>
+          <button 
+            onClick={() => setMobileView("grid")}
+            className={`transition-colors ${mobileView === "grid" ? "text-black" : "text-zinc-400 hover:text-black"}`}
+          >
+            <LayoutGrid className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
@@ -201,18 +194,6 @@ export default function ProductsClient() {
                   <option value="price-asc">Price, low to high</option>
                   <option value="price-desc">Price, high to low</option>
                 </select>
-              </div>
-
-              <div className="space-y-4 border-t border-zinc-100 pt-6">
-                <h3 className="text-sm font-semibold">Availability</h3>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={inStock} onChange={(e) => setInStock(e.target.checked)} className="w-5 h-5 accent-black" />
-                  <span className="text-sm text-zinc-600">In stock</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={outOfStock} onChange={(e) => setOutOfStock(e.target.checked)} className="w-5 h-5 accent-black" />
-                  <span className="text-sm text-zinc-600">Out of stock</span>
-                </label>
               </div>
 
               <div className="space-y-4 border-t border-zinc-100 pt-6">
@@ -251,10 +232,10 @@ export default function ProductsClient() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-3 gap-y-10 md:gap-x-8 md:gap-y-16">
+          {/* 👉 REVISI: Mengikat state mobileView ke dalam pembentukan kolom CSS Grid */}
+          <div className={`grid ${mobileView === "single" ? "grid-cols-1" : "grid-cols-2"} lg:grid-cols-3 gap-x-3 gap-y-10 md:gap-x-8 md:gap-y-16`}>
             {products.map((product) => (
               <Link key={product.id} href={`/products/${product.slug}`} className="group block">
-                {/* 👇 REVISI: Wadah & Image dirombak agar FULL tanpa padding 👇 */}
                 <div className="relative aspect-4/5 bg-[#f8f8f8] mb-3 md:mb-5 overflow-hidden">
                   
                   {/* BADGES */}

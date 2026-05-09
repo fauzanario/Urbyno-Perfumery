@@ -27,22 +27,37 @@ type OrderReq = {
   items: Array<{ variant_id: string; qty: number }>;
 };
 
-function badRequest(message: string) {
-  return NextResponse.json({ error: "INVALID_REQUEST", message }, { status: 400 });
+function badRequest(message: string, field?: string) {
+  return NextResponse.json(
+    {
+      error: "INVALID_REQUEST",
+      message,
+      field: field || null,
+    },
+    { status: 400 }
+  );
 }
 
 function toMoney(n: number) {
-  // DB pakai Numeric(12,2), kita simpan rupiah sebagai .00
   return new Prisma.Decimal(Number(n.toFixed(2)));
 }
 
 function normalizePhone(phone: string) {
-  // MVP: cukup trim. Nanti bisa kamu rapikan (62xxx)
   return phone.trim();
 }
 
+function validatePostalCode(postalCode?: string | null) {
+  const cleaned = (postalCode || "").trim();
+
+  if (!cleaned) return "Kode pos wajib diisi";
+  if (!/^\d+$/.test(cleaned)) return "Kode pos harus berupa angka";
+  if (cleaned.length < 5) return "Kode pos minimal terdiri dari 5 digit";
+  if (cleaned.length > 10) return "Kode pos tidak valid";
+
+  return "";
+}
+
 function generateOrderCode() {
-  // MVP: unik + gampang dibaca
   const now = new Date();
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, "0");
@@ -76,12 +91,20 @@ async function computeVoucherDiscount(params: {
   });
 
   if (!voucher) {
-    return { voucher: null, discount: 0, error: "Voucher tidak ditemukan atau tidak aktif" };
+    return {
+      voucher: null,
+      discount: 0,
+      error: "Voucher tidak ditemukan atau tidak aktif",
+    };
   }
 
   const now = new Date();
   if (voucher.startsAt && now < voucher.startsAt) {
-    return { voucher: null, discount: 0, error: "Voucher belum mulai berlaku" };
+    return {
+      voucher: null,
+      discount: 0,
+      error: "Voucher belum mulai berlaku",
+    };
   }
   if (voucher.endsAt && now > voucher.endsAt) {
     return { voucher: null, discount: 0, error: "Voucher sudah kadaluarsa" };
@@ -89,7 +112,11 @@ async function computeVoucherDiscount(params: {
 
   const minPurchase = Number(voucher.minPurchase);
   if (params.subtotal < minPurchase) {
-    return { voucher: null, discount: 0, error: `Minimal belanja voucher ini ${minPurchase}` };
+    return {
+      voucher: null,
+      discount: 0,
+      error: `Minimal belanja voucher ini ${minPurchase}`,
+    };
   }
 
   if (voucher.quota !== null && voucher.quota !== undefined) {
@@ -121,20 +148,36 @@ export async function POST(req: Request) {
     const body = (await req.json()) as Partial<OrderReq>;
 
     // ===== 1) Validasi request dasar =====
-    if (!body.customer?.name?.trim()) return badRequest("customer.name wajib diisi");
-    if (!body.customer?.phone?.trim()) return badRequest("customer.phone wajib diisi");
-    if (!body.shipping_address?.address_detail?.trim()) return badRequest("alamat wajib diisi");
-    if (!Number.isFinite(Number(body.shipping_address?.province_id))) return badRequest("province_id wajib angka");
-    if (!Number.isFinite(Number(body.shipping_address?.city_id))) return badRequest("city_id wajib angka");
+    if (!body.customer?.name?.trim())
+      return badRequest("Nama pelanggan wajib diisi", "lastName");
+    if (!body.customer?.phone?.trim())
+      return badRequest("Nomor WhatsApp wajib diisi", "phone");
+    if (!body.shipping_address?.address_detail?.trim())
+      return badRequest("Detail alamat wajib diisi", "address");
 
-    if (!body.shipping?.courier_code?.trim()) return badRequest("shipping.courier_code wajib diisi");
-    if (!body.shipping?.courier_service?.trim()) return badRequest("shipping.courier_service wajib diisi");
-    if (!Number.isFinite(Number(body.shipping?.shipping_cost)) || Number(body.shipping?.shipping_cost) < 0) {
-      return badRequest("shipping.shipping_cost wajib angka >= 0");
+    const postalCodeError = validatePostalCode(
+      body.shipping_address?.postal_code
+    );
+    if (postalCodeError) return badRequest(postalCodeError, "postalCode");
+
+    if (!Number.isFinite(Number(body.shipping_address?.province_id)))
+      return badRequest("Provinsi wajib dipilih");
+    if (!Number.isFinite(Number(body.shipping_address?.city_id)))
+      return badRequest("Kota/Kabupaten wajib dipilih");
+
+    if (!body.shipping?.courier_code?.trim())
+      return badRequest("Kurir pengiriman wajib dipilih");
+    if (!body.shipping?.courier_service?.trim())
+      return badRequest("Layanan pengiriman wajib dipilih");
+    if (
+      !Number.isFinite(Number(body.shipping?.shipping_cost)) ||
+      Number(body.shipping?.shipping_cost) < 0
+    ) {
+      return badRequest("Biaya pengiriman tidak valid");
     }
 
     if (!Array.isArray(body.items) || body.items.length === 0) {
-      return badRequest("items wajib diisi minimal 1 item");
+      return badRequest("Item pesanan wajib diisi minimal 1 item");
     }
 
     const items = body.items.map((it) => ({
@@ -143,7 +186,7 @@ export async function POST(req: Request) {
     }));
 
     if (items.some((it) => !it.variant_id || !Number.isInteger(it.qty) || it.qty < 1)) {
-      return badRequest("Setiap item wajib punya variant_id dan qty integer >= 1");
+      return badRequest("Data item pesanan tidak valid");
     }
 
     // ===== 2) Ambil variant dari DB + validasi stok & aktif =====
@@ -173,14 +216,16 @@ export async function POST(req: Request) {
 
     if (variants.length !== variantIds.length) {
       return NextResponse.json(
-        { error: "VARIANT_NOT_FOUND", message: "Ada varian yang tidak ditemukan / tidak aktif" },
+        {
+          error: "VARIANT_NOT_FOUND",
+          message: "Ada varian produk yang tidak ditemukan atau tidak aktif",
+        },
         { status: 404 }
       );
     }
 
     const variantMap = new Map(variants.map((v) => [v.id, v]));
 
-    // hitung subtotal + total berat + cek stok
     let subtotal = 0;
     let totalWeightGram = 0;
 
@@ -198,7 +243,7 @@ export async function POST(req: Request) {
         );
       }
 
-      const price = Number(v.price); // Prisma Decimal -> number
+      const price = Number(v.price);
       subtotal += price * it.qty;
       totalWeightGram += Number(v.weightGram) * it.qty;
     }
@@ -211,7 +256,10 @@ export async function POST(req: Request) {
 
     if ((body.voucher_code || "").trim() && voucherResult.error) {
       return NextResponse.json(
-        { error: "VOUCHER_INVALID", message: voucherResult.error },
+        {
+          error: "VOUCHER_INVALID",
+          message: voucherResult.error,
+        },
         { status: 400 }
       );
     }
@@ -222,10 +270,12 @@ export async function POST(req: Request) {
     const shippingCost = Number(body.shipping.shipping_cost);
     const grandTotal = Math.max(0, subtotal + shippingCost - discountAmount);
 
-    // Guard sederhana: jangan sampai total 0 atau negatif aneh
     if (grandTotal <= 0) {
       return NextResponse.json(
-        { error: "INVALID_TOTAL", message: "Total pembayaran tidak valid" },
+        {
+          error: "INVALID_TOTAL",
+          message: "Total pembayaran tidak valid",
+        },
         { status: 400 }
       );
     }
@@ -236,12 +286,17 @@ export async function POST(req: Request) {
     // ===== 6) Buat Midtrans Snap token (server-side) =====
     const serverKey = process.env.MIDTRANS_SERVER_KEY;
     const clientKey = process.env.MIDTRANS_CLIENT_KEY;
-    const isProduction = String(process.env.MIDTRANS_IS_PRODUCTION || "false") === "true";
+    const isProduction =
+      String(process.env.MIDTRANS_IS_PRODUCTION || "false") === "true";
     const appBaseUrl = process.env.APP_BASE_URL || "http://localhost:3000";
 
     if (!serverKey || !clientKey) {
       return NextResponse.json(
-        { error: "SERVER_MISCONFIG", message: "MIDTRANS_SERVER_KEY / MIDTRANS_CLIENT_KEY belum di-set" },
+        {
+          error: "SERVER_MISCONFIG",
+          message:
+            "Konfigurasi pembayaran belum lengkap. Silakan hubungi administrator.",
+        },
         { status: 500 }
       );
     }
@@ -252,7 +307,6 @@ export async function POST(req: Request) {
       clientKey,
     });
 
-    // item_details buat Midtrans (recommended kirim detail) :contentReference[oaicite:2]{index=2}
     const midtransItems = items.map((it) => {
       const v = variantMap.get(it.variant_id)!;
       return {
@@ -263,7 +317,6 @@ export async function POST(req: Request) {
       };
     });
 
-    // Tambahkan shipping & discount sebagai item agar total konsisten
     midtransItems.push({
       id: "SHIPPING",
       price: shippingCost,
@@ -282,7 +335,7 @@ export async function POST(req: Request) {
 
     const midtransParam = {
       transaction_details: {
-        order_id: orderCode,              // boleh sama dengan order_code
+        order_id: orderCode,
         gross_amount: Math.round(grandTotal),
       },
       item_details: midtransItems,
@@ -300,8 +353,9 @@ export async function POST(req: Request) {
         },
       },
       callbacks: {
-        // halaman frontend kamu setelah bayar selesai
-        finish: `${appBaseUrl}/payment/finish?order_code=${encodeURIComponent(orderCode)}`,
+        finish: `${appBaseUrl}/payment/finish?order_code=${encodeURIComponent(
+          orderCode
+        )}`,
       },
     };
 
@@ -310,7 +364,10 @@ export async function POST(req: Request) {
 
     if (!snapToken) {
       return NextResponse.json(
-        { error: "MIDTRANS_ERROR", message: "Gagal membuat transaksi Midtrans (token kosong)" },
+        {
+          error: "MIDTRANS_ERROR",
+          message: "Gagal membuat transaksi pembayaran.",
+        },
         { status: 502 }
       );
     }
@@ -348,7 +405,6 @@ export async function POST(req: Request) {
         select: { id: true, orderCode: true, status: true },
       });
 
-      // order_items snapshot
       await tx.orderItem.createMany({
         data: items.map((it) => {
           const v = variantMap.get(it.variant_id)!;
@@ -367,7 +423,6 @@ export async function POST(req: Request) {
         }),
       });
 
-      // payment record
       await tx.payment.create({
         data: {
           orderId: order.id,
@@ -397,8 +452,13 @@ export async function POST(req: Request) {
       },
     });
   } catch (err: any) {
+    console.error("POST /api/orders error:", err);
+
     return NextResponse.json(
-      { error: "INTERNAL_ERROR", message: err?.message || "Unknown error" },
+      {
+        error: "INTERNAL_ERROR",
+        message: "Terjadi kesalahan pada sistem. Silakan coba lagi.",
+      },
       { status: 500 }
     );
   }
